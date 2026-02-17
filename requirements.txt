@@ -1,8 +1,6 @@
-python-telegram-bot
 ccxt
 pandas
-pandas_ta
+pandas-ta
 flask
-gunicorn
 requests
-
+gunicorn
