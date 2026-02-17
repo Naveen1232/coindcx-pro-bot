@@ -7,7 +7,7 @@ import os
 
 # --- 1. కాన్ఫిగరేషన్ ---
 TELEGRAM_TOKEN = '8131878411:AAGjwDfUQZ40KAGqn60MOHQUccgBBZut-KY'
-CHAT_ID = '5336787589'
+CHAT_ID = '5356787589'
 
 app = Flask('')
 
