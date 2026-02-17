@@ -6,7 +6,7 @@ from threading import Thread
 import os
 
 # --- 1. కాన్ఫిగరేషన్ ---
-TELEGRAM_TOKEN = '8131878411:AAGjwDfUQZ40KAGqn60MOHQUccgBBZut-KY'
+TELEGRAM_TOKEN = '8531878411:AAGjmDFuQZ40KAGqn68MQh9UccgBBZUt-KY'
 CHAT_ID = '5356787589'
 
 app = Flask('')
