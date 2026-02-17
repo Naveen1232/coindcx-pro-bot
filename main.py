@@ -1,4 +1,3 @@
-import ccxt
 import pandas as pd
 import time
 import requests
@@ -6,24 +5,15 @@ from flask import Flask
 from threading import Thread
 import os
 
-# --- 1. కాన్ఫిగరేషన్ (మీ వివరాలు) ---
+# --- 1. కాన్ఫిగరేషన్ ---
 TELEGRAM_TOKEN = '8131878411:AAGjwDfUQZ40KAGqn60MOHQUccgBBZut-KY'
 CHAT_ID = '5336787589'
-
-# CoinDCX కనెక్షన్ - Error రాకుండా ఉండటానికి 'id' మెథడ్ వాడుతున్నాం
-def get_exchange():
-    # CoinDCX ని పిలవడానికి ఇది అత్యంత సురక్షితమైన మార్గం
-    exchange_id = 'coindcx'
-    exchange_class = getattr(ccxt, exchange_id)
-    return exchange_class()
-
-EXCHANGE = get_exchange()
 
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "CoinDCX Pro Bot is Live!"
+    return "CoinDCX Direct API Bot is Running!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
@@ -36,7 +26,23 @@ def send_telegram_msg(message):
     except:
         pass
 
-# --- 2. ఇండికేటర్స్ (సొంతంగా లెక్కించేవి) ---
+# --- 2. CoinDCX నుండి నేరుగా డేటా తీసుకోవడం (No ccxt needed) ---
+def get_coindcx_data(symbol):
+    try:
+        # CoinDCX Public API link
+        pair = symbol.replace("/", "")
+        url = f"https://public.coindcx.com/market_data/candles?pair={pair}&interval=15m"
+        response = requests.get(url)
+        data = response.json()
+        
+        # డేటాను టేబుల్ లాగా మార్చడం
+        df = pd.DataFrame(data)
+        df['close'] = df['close'].astype(float)
+        return df
+    except:
+        return None
+
+# RSI ఫార్ములా
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -44,40 +50,30 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-def get_signals(symbol):
-    try:
-        bars = EXCHANGE.fetch_ohlcv(symbol, timeframe='15m', limit=100)
-        df = pd.DataFrame(bars, columns=['time', 'open', 'high', 'low', 'close', 'vol'])
-        
-        df['RSI'] = calculate_rsi(df['close'])
-        df['EMA_20'] = df['close'].ewm(span=20, adjust=False).mean()
-        df['EMA_50'] = df['close'].ewm(span=50, adjust=False).mean()
-        
-        last = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        msg = ""
-        if last['RSI'] < 30:
-            msg = f"🚀 *BUY ALERT (RSI)* 🚀\n\n*Coin:* {symbol}\n*Price:* {last['close']}\n*RSI:* {round(last['RSI'], 2)}"
-        elif prev['EMA_20'] < prev['EMA_50'] and last['EMA_20'] > last['EMA_50']:
-            msg = f"📈 *GOLDEN CROSS (BUY)* 📈\n\n*Coin:* {symbol}\n*Trend:* Bullish"
+def scan_market():
+    # మనం స్కాన్ చేయాలనుకుంటున్న కాయిన్స్ (CoinDCX పేర్లు)
+    # గమనిక: ఇక్కడ B-BTC_USDT అంటే Binance మార్కెట్ డేటా అని అర్థం
+    coins = {"B-BTC_USDT": "BTC/USDT", "B-ETH_USDT": "ETH/USDT", "B-SOL_USDT": "SOL/USDT"}
+    
+    for pair_id, display_name in coins.items():
+        df = get_coindcx_data(pair_id)
+        if df is not None:
+            df['RSI'] = calculate_rsi(df['close'])
+            last_rsi = round(df.iloc[0]['RSI'], 2) # ఇక్కడ 0 అంటే లేటెస్ట్ డేటా
+            price = df.iloc[0]['close']
+            
+            if last_rsi < 30:
+                send_telegram_msg(f"🚀 *BUY ALERT* 🚀\n\n*Coin:* {display_name}\n*Price:* {price}\n*RSI:* {last_rsi}")
+            elif last_rsi > 70:
+                send_telegram_msg(f"⚠️ *SELL ALERT* ⚠️\n\n*Coin:* {display_name}\n*Price:* {price}\n*RSI:* {last_rsi}")
+        time.sleep(2)
 
-        if msg:
-            send_telegram_msg(msg)
-    except:
-        pass
-
-# --- 3. మెయిన్ బాట్ ---
+# --- 3. మెయిన్ లూప్ ---
 def main_loop():
-    send_telegram_msg("🤖 *CoinDCX Pro Bot is now Online!* \nScanning coins every 5 minutes...")
-    
-    symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'MATIC/USDT', 'DOGE/USDT']
-    
+    send_telegram_msg("✅ *Bot Started Successfully!* \nDirect API mode active. Scanning now...")
     while True:
-        for s in symbols:
-            get_signals(s)
-            time.sleep(2)
-        time.sleep(300)
+        scan_market()
+        time.sleep(300) # 5 నిమిషాల విరామం
 
 if __name__ == "__main__":
     t = Thread(target=run_flask)
