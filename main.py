@@ -10,7 +10,7 @@ import os
 # --- కాన్ఫిగరేషన్ ---
 TELEGRAM_TOKEN = '8131878411:AAGjwDfUQZ40KAGqn60MOHQUccgBBZut-KY'
 CHAT_ID = '5336787589'
-EXCHANGE = ccxt.coindcx()
+EXCHANGE = ccxt.coindcx() 
 
 app = Flask('')
 
